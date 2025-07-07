@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Viajess</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
+</head>
+<body>
+    <h1>Gestión de Viajes y Reservas</h1>
+
+    <nav>
+        <ul>
+            <li><a href="index.html">Inicio</a></li>
+            <li><a href="combos.html">Armar Combo de Viaje</a></li>
+        </ul>
+    </nav>
+
+    ---
+
+    <section>
+        <h2>Crear Viaje</h2>
+        <form id="viaje-form">
+            <input type="text" name="nombre" placeholder="Nombre del viaje" required />
+            <input type="text" name="descripcion" placeholder="Descripción" />
+            <input type="date" name="fecha_inicio" required />
+            <input type="date" name="fecha_fin" required />
+            <input type="text" name="transporte" placeholder="Transporte" />
+            <input type="number" name="capacidad" placeholder="Capacidad" required />
+            <input type="number" step="0.01" name="precio" placeholder="Precio ($)" required />
+            <button type="submit">Crear Viaje</button>
+        </form>
+    </section>
+
+    ---
+
+    <section>
+        <h2>Lista de Viajes</h2>
+        <ul id="viaje-list"></ul>
+    </section>
+
+    ---
+
+    <section>
+        <h2>Registrar Cliente</h2>
+        <form id="cliente-form">
+            <input type="text" name="nombre" placeholder="Nombre del cliente" required />
+            <input type="text" name="dni" placeholder="DNI" required />
+            <input type="email" name="email" placeholder="Email" />
+            <input type="text" name="telefono" placeholder="Teléfono" />
+            <textarea name="notas" placeholder="Notas adicionales"></textarea>
+            <button type="submit">Registrar Cliente</button>
+        </form>
+    </section>
+
+    ---
+
+    <section>
+        <h2>Lista de Clientes</h2>
+        <ul id="cliente-list"></ul>
+    </section>
+
+    ---
+
+    <section>
+        <h2>Reservar Cliente en Viaje</h2>
+        <form id="reserva-form">
+            <input type="text" id="busqueda-cliente" placeholder="Buscar cliente por nombre o DNI" autocomplete="off" />
+            <input type="hidden" id="cliente-id" name="cliente_id" />
+            <ul id="resultados-cliente"></ul>
+
+            <select name="viaje_id" id="viaje-select" required>
+                <option value="">Seleccione un viaje o combo</option>
+            </select>
+
+            <input type="text" name="transporte" placeholder="Transporte asignado" required />
+            <input type="text" name="hotel_asignado" placeholder="Hotel asignado" required />
+
+            <div>
+                <label for="metodo-pago">Método de pago:</label>
+                <select name="metodo_pago" id="metodo-pago" required>
+                    <option value="total">Pago total</option>
+                    <option value="cuotas">Pago en cuotas</option>
+                </select>
+            </div>
+
+            <div id="opcion-cuotas" style="display: none;">
+                <label for="cantidad-cuotas">Seleccione cantidad de cuotas:</label>
+                <select name="cantidad_cuotas" id="cantidad-cuotas">
+                    <option value="3">3 cuotas</option>
+                    <option value="6">6 cuotas</option>
+                    <option value="12">12 cuotas</option>
+                    <option value="18">18 cuotas</option>
+                </select>
+            </div>
+
+            <div id="simulador-cuotas" style="display: none;">
+                <h3>Plan de Pagos</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th># Cuota</th>
+                            <th>Valor</th>
+                            <th>Fecha</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-cuotas"></tbody>
+                </table>
+            </div>
+
+            <button type="submit">Reservar</button>
+        </form>
+    </section>
+
+    ---
+
+    <section>
+        <h2>Lista de Reservas</h2>
+        <form id="filtro-reservas-form">
+            <input type="text" id="filtro-cliente" placeholder="Filtrar por cliente" />
+            <input type="text" id="filtro-viaje" placeholder="Filtrar por viaje" />
+            <select id="filtro-estado-pago">
+                <option value="">Todos los estados</option>
+                <option value="pendiente">Pendiente</option>
+                <option value="pagado">Pagado</option>
+            </select>
+            <button type="submit">Filtrar Reservas</button>
+        </form>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Cliente</th>
+                    <th>Viaje</th>
+                    <th>Transporte</th>
+                    <th>Hotel Asignado</th>
+                    <th>Estado de Pago</th>
+                </tr>
+            </thead>
+            <tbody id="reservas-table">
+                </tbody>
+        </table>
+    </section>
+
+    ---
+
+    <section>
+        <h2>Canjear Puntos de Cliente</h2>
+        <form id="canje-form">
+            <label for="cliente-puntos-select">Seleccionar Cliente:</label>
+            <select id="cliente-puntos-select" name="cliente_id" required>
+                <option value="">Seleccione un cliente</option>
+            </select>
+            <input type="number" name="puntos_a_canjear" placeholder="Puntos a canjear" required min="1" />
+            <button type="submit">Canjear Puntos</button>
+        </form>
+    </section>
+
+    ---
+
+    <section>
+        <h2>Calendario de Viajes</h2>
+        <div id="calendar"></div>
+    </section>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+          
+            async function cargarListas() {
+                await cargarViajes();
+                await cargarClientes();
+                await cargarOpcionesViaje(); // Carga viajes y combos en el select de reserva
+                await cargarReservas();
+                await cargarClientesParaPuntos();
+            }
+
+          
+            async function cargarViajes() {
+                try {
+                    const response = await fetch("/viajes");
+                    const viajes = await response.json();
+                    const viajeList = document.getElementById("viaje-list");
+                    viajeList.innerHTML = "";
+                    if (viajes.length === 0) {
+                        viajeList.innerHTML = "<li>No hay viajes registrados.</li>";
+                        return;
+                    }
+                    viajes.forEach((viaje) => {
+                        const li = document.createElement("li");
+                        li.textContent = `${viaje.nombre} - ${viaje.descripcion} (${viaje.fecha_inicio} a ${viaje.fecha_fin}) - Transporte: ${viaje.transporte} - Capacidad: ${viaje.capacidad} - Precio: $${viaje.precio}`;
+                        viajeList.appendChild(li);
+                    });
+                } catch (error) {
+                    console.error("Error al cargar viajes:", error);
+                    alert("Error al cargar la lista de viajes.");
+                }
+            }
+
+            async function cargarClientes() {
+                try {
+                    const response = await fetch("/clientes");
+                    const clientes = await response.json();
+                    const clienteList = document.getElementById("cliente-list");
+                    clienteList.innerHTML = "";
+                    if (clientes.length === 0) {
+                        clienteList.innerHTML = "<li>No hay clientes registrados.</li>";
+                        return;
+                    }
+                    clientes.forEach((cliente) => {
+                        const li = document.createElement("li");
+                        li.textContent = `${cliente.nombre} (DNI: ${cliente.dni}) - Email: ${cliente.email || 'N/A'} - Teléfono: ${cliente.telefono || 'N/A'} - Puntos: ${cliente.puntos || 0}`;
+                        clienteList.appendChild(li);
+                    });
+                } catch (error) {
+                    console.error("Error al cargar clientes:", error);
+                    alert("Error al cargar la lista de clientes.");
+                }
+            }
+
+            async function cargarOpcionesViaje() {
+                try {
+                    const viajeSelect = document.getElementById("viaje-select");
+                    viajeSelect.innerHTML = '<option value="">Seleccione un viaje o combo</option>'; 
+
+                    // Cargar Viajes
+                    const viajesResponse = await fetch("/viajes");
+                    const viajes = await viajesResponse.json();
+                    viajes.forEach((viaje) => {
+                        const option = document.createElement("option");
+                        option.value = `viaje-${viaje.id}`;
+                        option.textContent = `Viaje: ${viaje.nombre} - $${viaje.precio}`;
+                        viajeSelect.appendChild(option);
+                    });
+
+                    // Cargar Combos
+                    const combosResponse = await fetch("/combos");
+                    const combos = await combosResponse.json();
+                    combos.forEach((combo) => {
+                        const option = document.createElement("option");
+                        option.value = `combo-${combo.id}`;
+                        option.textContent = `Combo: ${combo.nombre} (${combo.destino}, ${combo.personas} personas) - $${combo.precio}`;
+                        viajeSelect.appendChild(option);
+                    });
+                } catch (error) {
+                    console.error("Error al cargar opciones de viaje y combos:", error);
+                }
+            }
+
+            async function cargarReservas() {
+                try {
+                    const tableBody = document.getElementById("reservas-table");
+                    tableBody.innerHTML = ""; // Limpiar tabla
+
+                    const filtroCliente = document.getElementById("filtro-cliente").value;
+                    const filtroViaje = document.getElementById("filtro-viaje").value;
+                    const filtroEstadoPago = document.getElementById("filtro-estado-pago").value;
+
+                    const params = new URLSearchParams();
+                    if (filtroCliente) params.append("cliente", filtroCliente);
+                    if (filtroViaje) params.append("viaje", filtroViaje);
+                    if (filtroEstadoPago) params.append("estado_pago", filtroEstadoPago);
+
+                    const response = await fetch(`/reservas?${params.toString()}`);
+                    const reservas = await response.json();
+
+                    if (reservas.length === 0) {
+                        const row = tableBody.insertRow();
+                        const cell = row.insertCell(0);
+                        cell.colSpan = 6;
+                        cell.textContent = "No hay reservas que coincidan con los filtros.";
+                        cell.style.textAlign = "center";
+                        return;
+                    }
+
+                    reservas.forEach((reserva) => {
+                        const row = tableBody.insertRow();
+                        row.insertCell(0).textContent = reserva.id;
+                        row.insertCell(1).textContent = reserva.cliente;
+                        row.insertCell(2).textContent = reserva.viaje;
+                        row.insertCell(3).textContent = reserva.transporte;
+                        row.insertCell(4).textContent = reserva.hotel_asignado;
+                        row.insertCell(5).textContent = reserva.estado_pago;
+                    });
+                } catch (error) {
+                    console.error("Error al cargar reservas:", error);
+                    alert("Error al cargar la lista de reservas.");
+                }
+            }
+
+            async function cargarClientesParaPuntos() {
+                try {
+                    const response = await fetch("/clientes");
+                    const clientes = await response.json();
+                    const select = document.getElementById("cliente-puntos-select");
+                    select.innerHTML = '<option value="">Seleccione un cliente</option>';
+                    clientes.forEach(cliente => {
+                        const option = document.createElement("option");
+                        option.value = cliente.id;
+                        option.textContent = `${cliente.nombre} (DNI: ${cliente.dni}) - Puntos: ${cliente.puntos}`;
+                        select.appendChild(option);
+                    });
+                } catch (error) {
+                    console.error("Error al cargar clientes para puntos:", error);
+                }
+            }
+
+          //  es para el calendario
+            const calendarEl = document.getElementById("calendar");
+            let calendar;
+
+            async function cargarEventosCalendario() {
+                try {
+                    const response = await fetch("/viajes");
+                    const viajes = await response.json();
+                    const events = viajes.map(viaje => ({
+                        title: viaje.nombre,
+                        start: viaje.fecha_inicio,
+                        end: viaje.fecha_fin,
+                        description: viaje.descripcion,
+                        color: '#3498db' 
+                    }));
+
+                   
+                    if (calendar) {
+                        calendar.destroy();
+                    }
+
+                    calendar = new FullCalendar.Calendar(calendarEl, {
+                        initialView: "dayGridMonth",
+                        locale: "es", 
+                        events: events,
+                        eventDidMount: function(info) {
+                           
+                            info.el.title = `${info.event.title}\n${info.event.extendedProps.description || ''}`;
+                        }
+                    });
+                    calendar.render();
+                } catch (error) {
+                    console.error("Error al cargar eventos para el calendario:", error);
+                }
+            }
+
+            
+            document.getElementById("viaje-form").addEventListener("submit", async (event) => {
+                event.preventDefault();
+                const data = Object.fromEntries(new FormData(event.target).entries());
+                try {
+                    const response = await fetch("/viajes", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(data),
+                    });
+                    const result = await response.text();
+                    alert(result);
+                    if (response.ok) {
+                        event.target.reset(); 
+                        await cargarViajes();
+                        await cargarOpcionesViaje(); 
+                        await cargarEventosCalendario(); // Actualiza el calendario
+                    }
+                } catch (error) {
+                    console.error("Error al crear viaje:", error);
+                    alert("Hubo un error al crear el viaje. Inténtalo de nuevo.");
+                }
+            });
+
+            document.getElementById("cliente-form").addEventListener("submit", async (event) => {
+                event.preventDefault();
+                const data = Object.fromEntries(new FormData(event.target).entries());
+                try {
+                    const response = await fetch("/clientes", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(data),
+                    });
+                    const result = await response.text();
+                    alert(result);
+                    if (response.ok) {
+                        event.target.reset(); 
+                        await cargarClientes();
+                        await cargarClientesParaPuntos();
+                    }
+                } catch (error) {
+                    console.error("Error al crear cliente:", error);
+                    alert("Hubo un error al crear el cliente. Inténtalo de nuevo.");
+                }
+            });
+
+            document.getElementById("reserva-form").addEventListener("submit", async (event) => {
+                event.preventDefault();
+                const data = Object.fromEntries(new FormData(event.target).entries());
+                try {
+                    const response = await fetch("/reservas", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(data),
+                    });
+                    const result = await response.text();
+                    alert(result);
+                    if (response.ok) {
+                        event.target.reset(); 
+                        document.getElementById("busqueda-cliente").value = ''; 
+                        document.getElementById("cliente-id").value = ''; 
+                        document.getElementById("resultados-cliente").innerHTML = '';
+                        document.getElementById("resultados-cliente").style.display = "none"; 
+                        document.getElementById("opcion-cuotas").style.display = "none"; 
+                        document.getElementById("simulador-cuotas").style.display = "none"; 
+                        await cargarReservas();
+                        await cargarClientes(); 
+                        await cargarClientesParaPuntos(); 
+                    }
+                } catch (error) {
+                    console.error("Error al crear reserva:", error);
+                    alert("Hubo un error al crear la reserva. Inténtalo de nuevo.");
+                }
+            });
+
+            document.getElementById("canje-form").addEventListener("submit", async (event) => {
+                event.preventDefault();
+                const data = Object.fromEntries(new FormData(event.target).entries());
+                try {
+                    const response = await fetch("/clientes/canjear", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(data),
+                    });
+                    const result = await response.text();
+                    alert(result);
+                    if (response.ok) {
+                        event.target.reset(); 
+                        await cargarClientes(); 
+                        await cargarClientesParaPuntos();
+                    }
+                } catch (error) {
+                    console.error("Error al canjear puntos:", error);
+                    alert("Hubo un error al canjear puntos. Inténtalo de nuevo.");
+                }
+            });
+
+            document.getElementById("filtro-reservas-form").addEventListener("submit", (event) => {
+                event.preventDefault();
+                cargarReservas();
+            });
+
+
+         
+            const busquedaClienteInput = document.getElementById("busqueda-cliente");
+            const resultadosClienteList = document.getElementById("resultados-cliente");
+            const clienteIdInput = document.getElementById("cliente-id");
+
+            let searchTimeout;
+            busquedaClienteInput.addEventListener("input", () => {
+                clearTimeout(searchTimeout);
+                const query = busquedaClienteInput.value.trim();
+
+                if (query.length < 2) { 
+                    resultadosClienteList.innerHTML = '';
+                    resultadosClienteList.style.display = "none";
+                    clienteIdInput.value = ''; 
+                    return;
+                }
+
+                searchTimeout = setTimeout(async () => {
+                    try {
+                        const response = await fetch(`/clientes/buscar?query=${encodeURIComponent(query)}`);
+                        const clientes = await response.json();
+
+                        resultadosClienteList.innerHTML = '';
+                        if (clientes.length === 0) {
+                            resultadosClienteList.innerHTML = '<li>No se encontraron clientes.</li>';
+                            resultadosClienteList.style.display = "block";
+                            return;
+                        }
+
+                        clientes.forEach(cliente => {
+                            const li = document.createElement("li");
+                            li.textContent = `${cliente.nombre} (DNI: ${cliente.dni})`;
+                            li.dataset.clienteId = cliente.id;
+                            li.addEventListener("click", () => {
+                                busquedaClienteInput.value = `${cliente.nombre} (DNI: ${cliente.dni})`;
+                                clienteIdInput.value = cliente.id;
+                                resultadosClienteList.innerHTML = '';
+                                resultadosClienteList.style.display = "none";
+                            });
+                            resultadosClienteList.appendChild(li);
+                        });
+                        resultadosClienteList.style.display = "block";
+                    } catch (error) {
+                        console.error("Error al buscar clientes:", error);
+                        resultadosClienteList.innerHTML = '<li>Error al buscar.</li>';
+                        resultadosClienteList.style.display = "block";
+                    }
+                }, 300); 
+            });
+
+          
+            busquedaClienteInput.addEventListener('blur', () => {
+              
+                setTimeout(() => {
+                    if (!resultadosClienteList.contains(document.activeElement)) { 
+                        resultadosClienteList.style.display = 'none';
+                    }
+                }, 100);
+            });
+
+            
+            busquedaClienteInput.addEventListener('focus', () => {
+                if (resultadosClienteList.innerHTML !== '' && resultadosClienteList.childElementCount > 0) {
+                    resultadosClienteList.style.display = 'block';
+                }
+            });
+
+          // cuotas
+            const viajeSelect = document.getElementById("viaje-select");
+            const metodoPagoSelect = document.getElementById("metodo-pago");
+            const opcionCuotasDiv = document.getElementById("opcion-cuotas");
+            const cantidadCuotasSelect = document.getElementById("cantidad-cuotas");
+            const simuladorCuotasDiv = document.getElementById("simulador-cuotas");
+            const tablaCuotasBody = document.getElementById("tabla-cuotas");
+
+            async function obtenerPrecio(tipo, id) {
+                try {
+                    const response = await fetch(`/${tipo}es/${id}`);
+                    const data = await response.json();
+                    return data.precio;
+                } catch (error) {
+                    console.error(`Error al obtener precio de ${tipo}:`, error);
+                    return null;
+                }
+            }
+
+            async function simularCuotas() {
+                const selectedValue = viajeSelect.value;
+                if (!selectedValue) {
+                    tablaCuotasBody.innerHTML = '';
+                    simuladorCuotasDiv.style.display = 'none';
+                    return;
+                }
+
+                const [tipo, id] = selectedValue.split('-');
+                const precioBase = await obtenerPrecio(tipo, id);
+
+                if (precioBase === null) {
+                    tablaCuotasBody.innerHTML = '<tr><td colspan="3">Error al obtener el precio.</td></tr>';
+                    simuladorCuotasDiv.style.display = 'block';
+                    return;
+                }
+
+                const numCuotas = parseInt(cantidadCuotasSelect.value);
+                let tasaInteresAnual = 0.12; 
+                let tasaInteresMensual = tasaInteresAnual / 12;
+
+                let valorCuota = (precioBase * (tasaInteresMensual * Math.pow((1 + tasaInteresMensual), numCuotas))) / (Math.pow((1 + tasaInteresMensual), numCuotas) - 1);
+
+                if (isNaN(valorCuota)) {
+                   
+                    valorCuota = precioBase / numCuotas;
+                }
+
+
+                tablaCuotasBody.innerHTML = '';
+                let fechaCuota = new Date(); 
+
+                for (let i = 1; i <= numCuotas; i++) {
+                    const row = tablaCuotasBody.insertRow();
+                    row.insertCell(0).textContent = i;
+                    row.insertCell(1).textContent = `$${valorCuota.toFixed(2)}`;
+
+                    
+                    fechaCuota.setMonth(fechaCuota.getMonth() + (i === 1 ? 0 : 1)); 
+
+                    row.insertCell(2).textContent = fechaCuota.toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+                }
+                simuladorCuotasDiv.style.display = 'block';
+            }
+
+            metodoPagoSelect.addEventListener("change", () => {
+                if (metodoPagoSelect.value === "cuotas") {
+                    opcionCuotasDiv.style.display = "block";
+                    simuladorCuotasDiv.style.display = "block"; 
+                    simularCuotas(); 
+                } else {
+                    opcionCuotasDiv.style.display = "none";
+                    simuladorCuotasDiv.style.display = "none";
+                    tablaCuotasBody.innerHTML = '';
+                }
+            });
+
+            viajeSelect.addEventListener("change", () => {
+               
+                if (metodoPagoSelect.value === "cuotas") {
+                    simularCuotas();
+                }
+            });
+
+            cantidadCuotasSelect.addEventListener("change", () => {
+               
+                if (metodoPagoSelect.value === "cuotas") {
+                    simularCuotas();
+                }
+            });
+
+         
+            cargarListas();
+            cargarEventosCalendario();
+        });
+    </script>
+</body>
+</html>

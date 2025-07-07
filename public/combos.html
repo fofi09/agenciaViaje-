@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Combos de Viaje</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <h1>Gestión de Viajes</h1>
+        <nav>
+            <ul>
+                <li><a href="index.html">Inicio</a></li>
+                <li><a href="combos.html">Armar Combo de Viaje</a></li>
+                
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section id="crear-combo">
+            <h2>Crear Nuevo Combo de Viaje</h2>
+            <form id="comboForm">
+                <label for="nombreCombo">Nombre del Combo:</label>
+                <input type="text" id="nombreCombo" required>
+
+                <label for="destinoCombo">Destino:</label>
+                <input type="text" id="destinoCombo" required>
+
+                <label for="personasCombo">Número de Personas:</label>
+                <input type="number" id="personasCombo" min="1" required>
+
+                <label for="precioCombo">Precio Total del Combo:</label>
+                <input type="number" id="precioCombo" step="0.01" min="0" required>
+
+                <label for="descuentoCombo">Descuento (%):</label>
+                <input type="number" id="descuentoCombo" step="0.01" min="0" max="100">
+
+                <label for="tipoDescuentoCombo">Tipo de Descuento:</label>
+                <select id="tipoDescuentoCombo" required>
+                    <option value="">Cargando tipos...</option>
+                </select>
+
+                <button type="submit">Guardar Combo</button>
+            </form>
+            <p id="mensajeCombo" class="mensaje"></p>
+        </section>
+
+        <section id="crear-tipo-descuento">
+            <h2>Crear Nuevo Tipo de Descuento</h2>
+            <form id="tipoDescuentoForm">
+                <label for="nombreTipoDescuento">Nombre del Tipo de Descuento:</label>
+                <input type="text" id="nombreTipoDescuento" required>
+                <button type="submit">Guardar Tipo de Descuento</button>
+            </form>
+            <p id="mensajeTipoDescuento" class="mensaje"></p>
+        </section>
+
+        <section id="lista-combos">
+            <h2>Combos de Viaje Existentes</h2>
+            <table id="combosTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Destino</th>
+                        <th>Personas</th>
+                        <th>Precio</th>
+                        <th>Descuento</th>
+                        <th>Tipo Descuento</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    </tbody>
+            </table>
+            <p id="mensajeListaCombos" class="mensaje"></p>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Gestión de Viajes. Todos los derechos reservados.</p>
+    </footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const comboForm = document.getElementById('comboForm');
+            const mensajeCombo = document.getElementById('mensajeCombo');
+            const tipoDescuentoCombo = document.getElementById('tipoDescuentoCombo');
+            const combosTableBody = document.querySelector('#combosTable tbody');
+            const mensajeListaCombos = document.getElementById('mensajeListaCombos');
+
+            // Nuevas referencias para la funcionalidad de tipos de descuento
+            const tipoDescuentoForm = document.getElementById('tipoDescuentoForm');
+            const nombreTipoDescuento = document.getElementById('nombreTipoDescuento');
+            const mensajeTipoDescuento = document.getElementById('mensajeTipoDescuento');
+
+
+            // Función para cargar los tipos de descuento (para el select)
+            async function cargarTiposDescuento() {
+                try {
+                    const response = await fetch('/tipos-descuento');
+                    if (!response.ok) {
+                        throw new Error(`Error HTTP: ${response.status}`);
+                    }
+                    const tipos = await response.json(); // Espera un array de strings, ej: ["Efectivo", "Tarjeta"]
+                    tipoDescuentoCombo.innerHTML = '<option value="">Seleccione un tipo</option>'; // Opción por defecto
+                    if (tipos && tipos.length > 0) {
+                        tipos.forEach(tipo => {
+                            const option = document.createElement('option');
+                            option.value = tipo;
+                            option.textContent = tipo;
+                            tipoDescuentoCombo.appendChild(option);
+                        });
+                    } else {
+                        tipoDescuentoCombo.innerHTML += '<option value="">No hay tipos de descuento registrados</option>';
+                    }
+                } catch (error) {
+                    console.error('Error al cargar tipos de descuento:', error);
+                    tipoDescuentoCombo.innerHTML = '<option value="">Error al cargar tipos</option>';
+                }
+            }
+
+            // Función para cargar y mostrar los combos existentes
+            async function cargarCombos() {
+                combosTableBody.innerHTML = ''; // Limpiar tabla antes de cargar
+                mensajeListaCombos.textContent = 'Cargando combos...';
+                try {
+                    const response = await fetch('/combos'); // Llama a tu endpoint de Express
+                    if (!response.ok) {
+                        throw new Error(`Error HTTP: ${response.status}`);
+                    }
+                    const combos = await response.json(); // Espera un array de objetos combo
+
+                    if (!combos || combos.length === 0) {
+                        mensajeListaCombos.textContent = 'No hay combos de viaje registrados.';
+                        return;
+                    }
+
+                    mensajeListaCombos.textContent = ''; // Limpiar mensaje si hay combos
+                    combos.forEach(combo => {
+                        const row = combosTableBody.insertRow();
+                        row.insertCell().textContent = combo.id;
+                        row.insertCell().textContent = combo.nombre;
+                        row.insertCell().textContent = combo.destino;
+                        row.insertCell().textContent = combo.personas;
+                        row.insertCell().textContent = combo.precio ? `$${combo.precio.toFixed(2)}` : 'N/A'; // Mostrar precio con 2 decimales y $
+                        row.insertCell().textContent = combo.descuento ? `${combo.descuento}%` : '0%';
+                        row.insertCell().textContent = combo.tipo_descuento || 'N/A';
+                    });
+                } catch (error) {
+                    console.error('Error al cargar combos:', error);
+                    mensajeListaCombos.textContent = 'Error al cargar los combos de viaje.';
+                }
+            }
+
+            // Manejar el envío del formulario de combo
+            comboForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const comboData = {
+                    nombre: document.getElementById('nombreCombo').value,
+                    destino: document.getElementById('destinoCombo').value,
+                    personas: parseInt(document.getElementById('personasCombo').value),
+                    precio: parseFloat(document.getElementById('precioCombo').value),
+                    descuento: parseFloat(document.getElementById('descuentoCombo').value) || 0,
+                    tipo_descuento: document.getElementById('tipoDescuentoCombo').value
+                };
+
+                if (!comboData.nombre || !comboData.destino || isNaN(comboData.personas) || isNaN(comboData.precio) || !comboData.tipo_descuento) {
+                    mensajeCombo.textContent = "Por favor, complete todos los campos obligatorios y asegúrese de que los números sean válidos.";
+                    mensajeCombo.style.color = 'red';
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/combos', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(comboData)
+                    });
+
+                    const result = await response.text();
+
+                    if (!response.ok) {
+                        throw new Error(result || 'Error desconocido al guardar el combo.');
+                    }
+
+                    mensajeCombo.textContent = result;
+                    mensajeCombo.style.color = 'green';
+                    comboForm.reset();
+                    cargarCombos(); // Recargar la lista de combos para mostrar el nuevo
+                } catch (error) {
+                    console.error('Error al guardar combo:', error);
+                    mensajeCombo.textContent = `Error: ${error.message}`;
+                    mensajeCombo.style.color = 'red';
+                }
+            });
+
+            // Manejar el envío del formulario de tipo de descuento (RESTAURADO)
+            tipoDescuentoForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                const nombre = nombreTipoDescuento.value.trim();
+                if (!nombre) {
+                    mensajeTipoDescuento.textContent = "El nombre del tipo de descuento no puede estar vacío.";
+                    mensajeTipoDescuento.style.color = 'red';
+                    return;
+                }
+
+                try {
+                    const response = await fetch('/tipos-descuento', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ nombre: nombre })
+                    });
+
+                    const result = await response.text();
+
+                    if (!response.ok) {
+                        throw new Error(result || 'Error al guardar el tipo de descuento.');
+                    }
+
+                    mensajeTipoDescuento.textContent = result;
+                    mensajeTipoDescuento.style.color = 'green';
+                    nombreTipoDescuento.value = ''; // Limpiar campo
+                    cargarTiposDescuento(); // Recargar el select de tipos de descuento
+                } catch (error) {
+                    console.error('Error al guardar tipo de descuento:', error);
+                    mensajeTipoDescuento.textContent = `Error: ${error.message}`;
+                    mensajeTipoDescuento.style.color = 'red';
+                }
+            });
+
+
+            // Cargar datos iniciales al cargar la página
+            cargarTiposDescuento();
+            cargarCombos();
+        });
+    </script>
+</body>
+</html>
